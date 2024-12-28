@@ -1,5 +1,6 @@
 const std = @import("std");
 const Action = @import("action.zig").Action;
+const open = @import("../config/edit.zig").open;
 const Allocator = std.mem.Allocator;
 pub const Options = struct {
     pub fn deinit(self: Options) void {
@@ -13,7 +14,8 @@ pub const Options = struct {
     }
 };
 
-/// Open the configuration file in $EDITOR
-pub fn run(_: Allocator) !u8 {
+/// Open the configuration file in default editor
+pub fn run(alloc: Allocator) !u8 {
+    try open(alloc);
     return 0;
 }
