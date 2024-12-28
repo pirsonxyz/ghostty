@@ -13,6 +13,7 @@ const show_config = @import("show_config.zig");
 const validate_config = @import("validate_config.zig");
 const crash_report = @import("crash_report.zig");
 const show_face = @import("show_face.zig");
+const open_config = @import("open_config.zig");
 
 /// Special commands that can be invoked via CLI flags. These are all
 /// invoked by using `+<action>` as a CLI flag. The only exception is
@@ -50,6 +51,8 @@ pub const Action = enum {
 
     // Show which font face Ghostty loads a codepoint from.
     @"show-face",
+    // Open the config file on $EDITOR
+    @"open-config",
 
     pub const Error = error{
         /// Multiple actions were detected. You can specify at most one
@@ -151,6 +154,7 @@ pub const Action = enum {
             .@"validate-config" => try validate_config.run(alloc),
             .@"crash-report" => try crash_report.run(alloc),
             .@"show-face" => try show_face.run(alloc),
+            .@"open-config" => try open_config.run(alloc),
         };
     }
 
@@ -186,6 +190,7 @@ pub const Action = enum {
                 .@"validate-config" => validate_config.Options,
                 .@"crash-report" => crash_report.Options,
                 .@"show-face" => show_face.Options,
+                .@"open-config" => open_config.Options,
             };
         }
     }
