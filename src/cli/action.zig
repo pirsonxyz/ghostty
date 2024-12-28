@@ -43,15 +43,16 @@ pub const Action = enum {
     /// Dump the config to stdout
     @"show-config",
 
-    // Validate passed config file
+    /// Validate passed config file
     @"validate-config",
 
-    // List, (eventually) view, and (eventually) send crash reports.
+    /// List, (eventually) view, and (eventually) send crash reports.
     @"crash-report",
 
-    // Show which font face Ghostty loads a codepoint from.
+    /// Show which font face Ghostty loads a codepoint from.
     @"show-face",
-    // Open the config file on $EDITOR
+
+    /// Open the configuration file on default editor.
     @"open-config",
 
     pub const Error = error{
