@@ -255,30 +255,40 @@ const c = @cImport({
 ///     that things like status lines continue to look aligned.
 @"adjust-cell-width": ?MetricModifier = null,
 @"adjust-cell-height": ?MetricModifier = null,
-/// Distance in pixels from the bottom of the cell to the text baseline.
+/// Distance in pixels or percentage adjustment from the bottom of the cell to the text baseline.
 /// Increase to move baseline UP, decrease to move baseline DOWN.
+/// See the notes about adjustments in `adjust-cell-width`.
 @"adjust-font-baseline": ?MetricModifier = null,
-/// Distance in pixels from the top of the cell to the top of the underline.
+/// Distance in pixels or percentage adjustment from the top of the cell to the top of the underline.
 /// Increase to move underline DOWN, decrease to move underline UP.
+/// See the notes about adjustments in `adjust-cell-width`.
 @"adjust-underline-position": ?MetricModifier = null,
 /// Thickness in pixels of the underline.
+/// See the notes about adjustments in `adjust-cell-width`.
 @"adjust-underline-thickness": ?MetricModifier = null,
-/// Distance in pixels from the top of the cell to the top of the strikethrough.
+/// Distance in pixels or percentage adjustment from the top of the cell to the top of the strikethrough.
 /// Increase to move strikethrough DOWN, decrease to move underline UP.
+/// See the notes about adjustments in `adjust-cell-width`.
 @"adjust-strikethrough-position": ?MetricModifier = null,
-/// Thickness in pixels of the strikethrough.
+/// Thickness in pixels or percentage adjustment of the strikethrough.
+/// See the notes about adjustments in `adjust-cell-width`.
 @"adjust-strikethrough-thickness": ?MetricModifier = null,
-/// Distance in pixels from the top of the cell to the top of the overline.
+/// Distance in pixels or percentage adjustment from the top of the cell to the top of the overline.
 /// Increase to move overline DOWN, decrease to move underline UP.
+/// See the notes about adjustments in `adjust-cell-width`.
 @"adjust-overline-position": ?MetricModifier = null,
-/// Thickness in pixels of the overline.
+/// Thickness in pixels or percentage adjustment of the overline.
+/// See the notes about adjustments in `adjust-cell-width`.
 @"adjust-overline-thickness": ?MetricModifier = null,
-/// Thickness in pixels of the bar cursor and outlined rect cursor.
+/// Thickness in pixels or percentage adjustment of the bar cursor and outlined rect cursor.
+/// See the notes about adjustments in `adjust-cell-width`.
 @"adjust-cursor-thickness": ?MetricModifier = null,
-/// Height in pixels of the cursor. Currently applies to all cursor types:
+/// Height in pixels or percentage adjustment of the cursor. Currently applies to all cursor types:
 /// bar, rect, and outlined rect.
+/// See the notes about adjustments in `adjust-cell-width`.
 @"adjust-cursor-height": ?MetricModifier = null,
-/// Thickness in pixels of box drawing characters.
+/// Thickness in pixels or percentage adjustment of box drawing characters.
+/// See the notes about adjustments in `adjust-cell-width`.
 @"adjust-box-thickness": ?MetricModifier = null,
 
 /// The method to use for calculating the cell width of a grapheme cluster.
@@ -475,7 +485,7 @@ palette: Palette = .{},
 ///
 /// Valid values are:
 ///
-///   * `` (blank)
+///   * ` ` (blank)
 ///   * `true`
 ///   * `false`
 ///
@@ -669,7 +679,7 @@ command: ?[]const u8 = null,
 /// This is a future planned feature.
 ///
 /// This can be changed at runtime but will only affect new terminal surfaces.
-@"scrollback-limit": u32 = 10_000_000, // 10MB
+@"scrollback-limit": usize = 10_000_000, // 10MB
 
 /// Match a regular expression against the terminal text and associate clicking
 /// it with an action. This can be used to match URLs, file paths, etc. Actions
@@ -769,7 +779,25 @@ class: ?[:0]const u8 = null,
 /// the documentation or using the `ghostty +list-actions` command.
 ///
 /// Trigger: `+`-separated list of keys and modifiers. Example: `ctrl+a`,
-/// `ctrl+shift+b`, `up`. Some notes:
+/// `ctrl+shift+b`, `up`.
+///
+/// Valid keys are currently only listed in the
+/// [Ghostty source code](https://github.com/ghostty-org/ghostty/blob/d6e76858164d52cff460fedc61ddf2e560912d71/src/input/key.zig#L255).
+/// This is a documentation limitation and we will improve this in the future.
+/// A common gotcha is that numeric keys are written as words: i.e. `one`,
+/// `two`, `three`, etc. and not `1`, `2`, `3`. This will also be improved in
+/// the future.
+///
+/// Valid modifiers are `shift`, `ctrl` (alias: `control`), `alt` (alias: `opt`,
+/// `option`), and `super` (alias: `cmd`, `command`). You may use the modifier
+/// or the alias. When debugging keybinds, the non-aliased modifier will always
+/// be used in output.
+///
+/// Note: The fn or "globe" key on keyboards are not supported as a
+/// modifier. This is a limitation of the operating systems and GUI toolkits
+/// that Ghostty uses.
+///
+/// Some additional notes for triggers:
 ///
 ///   * modifiers cannot repeat, `ctrl+ctrl+a` is invalid.
 ///
@@ -782,15 +810,6 @@ class: ?[:0]const u8 = null,
 ///     physical key mapping rather than a logical one. A physical key
 ///     mapping responds to the hardware keycode and not the keycode
 ///     translated by any system keyboard layouts. Example: "ctrl+physical:a"
-///
-/// Valid modifiers are `shift`, `ctrl` (alias: `control`), `alt` (alias: `opt`,
-/// `option`), and `super` (alias: `cmd`, `command`). You may use the modifier
-/// or the alias. When debugging keybinds, the non-aliased modifier will always
-/// be used in output.
-///
-/// Note: The fn or "globe" key on keyboards are not supported as a
-/// modifier. This is a limitation of the operating systems and GUI toolkits
-/// that Ghostty uses.
 ///
 /// You may also specify multiple triggers separated by `>` to require a
 /// sequence of triggers to activate the action. For example,
@@ -1079,7 +1098,7 @@ keybind: Keybinds = .{},
 /// BUG: On Linux with GTK, the calculated window size will not properly take
 /// into account window decorations. As a result, the grid dimensions will not
 /// exactly match this configuration. If window decorations are disabled (see
-/// window-decorations), then this will work as expected.
+/// `window-decoration`), then this will work as expected.
 ///
 /// Windows smaller than 10 wide by 4 high are not allowed.
 @"window-height": u32 = 0,
@@ -1129,6 +1148,16 @@ keybind: Keybinds = .{},
 ///
 ///   * `end` - Insert the new tab at the end of the tab list.
 @"window-new-tab-position": WindowNewTabPosition = .current,
+
+/// Background color for the window titlebar. This only takes effect if
+/// window-theme is set to ghostty. Currently only supported in the GTK app
+/// runtime.
+@"window-titlebar-background": ?Color = null,
+
+/// Foreground color for the window titlebar. This only takes effect if
+/// window-theme is set to ghostty. Currently only supported in the GTK app
+/// runtime.
+@"window-titlebar-foreground": ?Color = null,
 
 /// This controls when resize overlays are shown. Resize overlays are a
 /// transient popup that shows the size of the terminal while the surfaces are
@@ -1191,7 +1220,7 @@ keybind: Keybinds = .{},
 
 /// If true, when there are multiple split panes, the mouse selects the pane
 /// that is focused. This only applies to the currently focused window; i.e.
-/// mousing over a split in an unfocused window will now focus that split
+/// mousing over a split in an unfocused window will not focus that split
 /// and bring the window to front.
 ///
 /// Default is false.
@@ -1224,6 +1253,15 @@ keybind: Keybinds = .{},
 /// program has bracketed paste mode enabled (a setting set by the running
 /// program, not the terminal emulator).
 @"clipboard-paste-bracketed-safe": bool = true,
+
+/// Enables or disabled title reporting (CSI 21 t). This escape sequence
+/// allows the running program to query the terminal title. This is a common
+/// security issue and is disabled by default.
+///
+/// Warning: This can expose sensitive information at best and enable
+/// arbitrary code execution at worst (with a maliciously crafted title
+/// and a minor amount of user interaction).
+@"title-report": bool = false,
 
 /// The total amount of bytes that can be used for image data (i.e. the Kitty
 /// image protocol) per terminal screen. The maximum value is 4,294,967,295
@@ -1304,9 +1342,13 @@ keybind: Keybinds = .{},
 /// This configuration can only be set via CLI arguments.
 @"config-default-files": bool = true,
 
-/// Confirms that a surface should be closed before closing it. This defaults to
-/// true. If set to false, surfaces will close without any confirmation.
-@"confirm-close-surface": bool = true,
+/// Confirms that a surface should be closed before closing it.
+///
+/// This defaults to `true`. If set to `false`, surfaces will close without
+/// any confirmation. This can also be set to `always`, which will always
+/// confirm closing a surface, even if shell integration says a process isn't
+/// running.
+@"confirm-close-surface": ConfirmCloseSurface = .true,
 
 /// Whether or not to quit after the last surface is closed.
 ///
@@ -1380,6 +1422,9 @@ keybind: Keybinds = .{},
 ///   * `center` - Terminal appears at the center of the screen.
 ///
 /// Changing this configuration requires restarting Ghostty completely.
+///
+/// Note: There is no default keybind for toggling the quick terminal.
+/// To enable this feature, bind the `toggle_quick_terminal` action to a key.
 @"quick-terminal-position": QuickTerminalPosition = .top,
 
 /// The screen where the quick terminal should show up.
@@ -1812,7 +1857,7 @@ keybind: Keybinds = .{},
 ///
 /// If `false`, each new ghostty process will launch a separate application.
 ///
-/// The default value is `detect` which will default to `true` if Ghostty
+/// The default value is `desktop` which will default to `true` if Ghostty
 /// detects that it was launched from the `.desktop` file such as an app
 /// launcher (like Gnome Shell)  or by D-Bus activation. If Ghostty is launched
 /// from the command line, it will default to `false`.
@@ -2303,18 +2348,18 @@ pub fn default(alloc_gpa: Allocator) Allocator.Error!Config {
         );
     }
     {
+        // On macOS we default to super but everywhere else
+        // is alt.
+        const mods: inputpkg.Mods = if (builtin.target.isDarwin())
+            .{ .super = true }
+        else
+            .{ .alt = true };
+
         // Cmd+N for goto tab N
         const start = @intFromEnum(inputpkg.Key.one);
-        const end = @intFromEnum(inputpkg.Key.nine);
+        const end = @intFromEnum(inputpkg.Key.eight);
         var i: usize = start;
         while (i <= end) : (i += 1) {
-            // On macOS we default to super but everywhere else
-            // is alt.
-            const mods: inputpkg.Mods = if (builtin.target.isDarwin())
-                .{ .super = true }
-            else
-                .{ .alt = true };
-
             try result.keybind.set.put(
                 alloc,
                 .{
@@ -2333,6 +2378,17 @@ pub fn default(alloc_gpa: Allocator) Allocator.Error!Config {
                 .{ .goto_tab = (i - start) + 1 },
             );
         }
+        try result.keybind.set.put(
+            alloc,
+            .{
+                .key = if (comptime builtin.target.isDarwin())
+                    .{ .physical = .nine }
+                else
+                    .{ .translated = .nine },
+                .mods = mods,
+            },
+            .{ .last_tab = {} },
+        );
     }
 
     // Toggle fullscreen
@@ -2436,11 +2492,6 @@ pub fn default(alloc_gpa: Allocator) Allocator.Error!Config {
             alloc,
             .{ .key = .{ .translated = .right_bracket }, .mods = .{ .super = true, .shift = true } },
             .{ .next_tab = {} },
-        );
-        try result.keybind.set.put(
-            alloc,
-            .{ .key = .{ .physical = inputpkg.Key.zero }, .mods = .{ .super = true } },
-            .{ .last_tab = {} },
         );
         try result.keybind.set.put(
             alloc,
@@ -2548,6 +2599,11 @@ pub fn default(alloc_gpa: Allocator) Allocator.Error!Config {
             alloc,
             .{ .key = .{ .translated = .left }, .mods = .{ .super = true } },
             .{ .text = "\\x01" },
+        );
+        try result.keybind.set.put(
+            alloc,
+            .{ .key = .{ .translated = .backspace }, .mods = .{ .super = true } },
+            .{ .esc = "\x15" },
         );
         try result.keybind.set.put(
             alloc,
@@ -3628,6 +3684,15 @@ const Replay = struct {
     fn iterator(slice: []const Replay.Step, dst: *Config) Iterator {
         return .{ .slice = slice, .config = dst };
     }
+};
+
+/// Valid values for confirm-close-surface
+/// c_int because it needs to be extern compatible
+/// If this is changed, you must also update ghostty.h
+pub const ConfirmCloseSurface = enum(c_int) {
+    false,
+    true,
+    always,
 };
 
 /// Valid values for custom-shader-animation

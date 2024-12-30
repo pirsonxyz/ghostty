@@ -6,6 +6,7 @@ const Surface = @This();
 const std = @import("std");
 const Allocator = std.mem.Allocator;
 const build_config = @import("../../build_config.zig");
+const build_options = @import("build_options");
 const configpkg = @import("../../config.zig");
 const apprt = @import("../../apprt.zig");
 const font = @import("../../font/main.zig");
@@ -346,6 +347,9 @@ cursor: ?*c.GdkCursor = null,
 /// pass it to GTK.
 title_text: ?[:0]const u8 = null,
 
+/// The timer used to delay title updates in order to prevent flickering.
+update_title_timer: ?c.guint = null,
+
 /// The core surface backing this surface
 core_surface: CoreSurface,
 
@@ -506,7 +510,7 @@ pub fn init(self: *Surface, app: *App, opts: Options) !void {
         var buf: [256]u8 = undefined;
         const name = std.fmt.bufPrint(
             &buf,
-            "surfaces/{X}.service",
+            "surfaces/{X}.scope",
             .{@intFromPtr(self)},
         ) catch unreachable;
 
@@ -647,6 +651,7 @@ pub fn deinit(self: *Surface) void {
     // and therefore the unfocused_overlay has been destroyed as well.
     c.g_object_unref(self.im_context);
     if (self.cursor) |cursor| c.g_object_unref(cursor);
+    if (self.update_title_timer) |timer| _ = c.g_source_remove(timer);
     self.resize_overlay.deinit();
 }
 
@@ -894,7 +899,23 @@ pub fn setTitle(self: *Surface, slice: [:0]const u8) !void {
     if (self.title_text) |old| alloc.free(old);
     self.title_text = copy;
 
+    // delay the title update to prevent flickering
+    if (self.update_title_timer) |timer| {
+        if (c.g_source_remove(timer) == c.FALSE) {
+            log.warn("unable to remove update title timer", .{});
+        }
+        self.update_title_timer = null;
+    }
+    self.update_title_timer = c.g_timeout_add(75, updateTitleTimerExpired, self);
+}
+
+fn updateTitleTimerExpired(ctx: ?*anyopaque) callconv(.C) c.gboolean {
+    const self: *Surface = @ptrCast(@alignCast(ctx));
+
     self.updateTitleLabels();
+    self.update_title_timer = null;
+
+    return c.FALSE;
 }
 
 pub fn getTitle(self: *Surface) ?[:0]const u8 {
@@ -1183,7 +1204,7 @@ fn showContextMenu(self: *Surface, x: f32, y: f32) void {
         @ptrCast(window.window),
         &c.GRAPHENE_POINT_INIT(point.x, point.y),
         @ptrCast(&point),
-    ) == c.False) {
+    ) == 0) {
         log.warn("failed computing point for context menu", .{});
         return;
     }
@@ -1899,7 +1920,7 @@ pub fn dimSurface(self: *Surface) void {
     // Don't dim surface if context menu is open.
     // This means we got unfocused due to it opening.
     const context_menu_open = c.gtk_widget_get_visible(window.context_menu);
-    if (context_menu_open == c.True) return;
+    if (context_menu_open == 1) return;
 
     if (self.unfocused_widget != null) return;
     self.unfocused_widget = c.gtk_drawing_area_new();

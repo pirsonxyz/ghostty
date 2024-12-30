@@ -13,6 +13,7 @@ pub fn genKeybindActions(writer: anytype) !void {
         \\---
         \\title: Keybinding Action Reference
         \\description: Reference of all Ghostty keybinding actions.
+        \\editOnGithubLink: https://github.com/ghostty-org/ghostty/edit/main/src/input/Binding.zig
         \\---
         \\
         \\This is a reference of all Ghostty keybinding actions.
@@ -21,9 +22,11 @@ pub fn genKeybindActions(writer: anytype) !void {
     );
 
     @setEvalBranchQuota(5_000);
-    const fields = @typeInfo(KeybindAction).Union.fields;
 
     var buffer = std.ArrayList(u8).init(std.heap.page_allocator);
+    defer buffer.deinit();
+
+    const fields = @typeInfo(KeybindAction).Union.fields;
     inline for (fields) |field| {
         if (field.name[0] == '_') continue;
 

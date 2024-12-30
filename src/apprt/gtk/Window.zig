@@ -124,8 +124,8 @@ pub fn init(self: *Window, app: *App) !void {
     // Setup our notebook
     self.notebook = Notebook.create(self);
 
-    // If we are using an AdwWindow then we can support the tab overview.
-    self.tab_overview = if (self.isAdwWindow()) overview: {
+    // If we are using Adwaita, then we can support the tab overview.
+    self.tab_overview = if ((comptime adwaita.versionAtLeast(1, 3, 0)) and adwaita.enabled(&self.app.config) and adwaita.versionAtLeast(1, 3, 0)) overview: {
         const tab_overview = c.adw_tab_overview_new();
         c.adw_tab_overview_set_view(@ptrCast(tab_overview), self.notebook.adw_tab_view);
         c.adw_tab_overview_set_enable_new_tab(@ptrCast(tab_overview), 1);
@@ -250,14 +250,14 @@ pub fn init(self: *Window, app: *App) !void {
 
     // If we have a tab overview then we can set it on our notebook.
     if (self.tab_overview) |tab_overview| {
-        if (comptime !adwaita.versionAtLeast(1, 4, 0)) unreachable;
+        if (comptime !adwaita.versionAtLeast(1, 3, 0)) unreachable;
         assert(self.notebook == .adw_tab_view);
         c.adw_tab_overview_set_view(@ptrCast(tab_overview), self.notebook.adw_tab_view);
     }
 
     self.context_menu = c.gtk_popover_menu_new_from_model(@ptrCast(@alignCast(self.app.context_menu)));
     c.gtk_widget_set_parent(self.context_menu, window);
-    c.gtk_popover_set_has_arrow(@ptrCast(@alignCast(self.context_menu)), c.False);
+    c.gtk_popover_set_has_arrow(@ptrCast(@alignCast(self.context_menu)), 0);
     c.gtk_widget_set_halign(self.context_menu, c.GTK_ALIGN_START);
 
     // If we are in fullscreen mode, new windows start fullscreen.
@@ -735,7 +735,7 @@ fn gtkActionAbout(
 
     const name = "Ghostty";
     const icon = "com.mitchellh.ghostty";
-    const website = "https://github.com/ghostty-org/ghostty";
+    const website = "https://ghostty.org";
 
     if ((comptime adwaita.versionAtLeast(1, 5, 0)) and
         adwaita.versionAtLeast(1, 5, 0) and

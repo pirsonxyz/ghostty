@@ -15,6 +15,7 @@ const assert = std.debug.assert;
 const Allocator = std.mem.Allocator;
 const builtin = @import("builtin");
 const build_config = @import("../../build_config.zig");
+const build_options = @import("build_options");
 const apprt = @import("../../apprt.zig");
 const configpkg = @import("../../config.zig");
 const input = @import("../../input.zig");
@@ -360,6 +361,7 @@ pub fn init(core_app: *CoreApp, opts: Options) !App {
     // keyboard state but the block does more than that (i.e. setting up
     // WM_CLASS).
     const x11_xkb: ?x11.Xkb = x11_xkb: {
+        if (comptime !build_options.x11) break :x11_xkb null;
         if (!x11.is_display(display)) break :x11_xkb null;
 
         // Set the X11 window class property (WM_CLASS) if are are on an X11
@@ -966,8 +968,8 @@ fn loadRuntimeCss(
     const config: *const Config = &self.config;
     const window_theme = config.@"window-theme";
     const unfocused_fill: Config.Color = config.@"unfocused-split-fill" orelse config.background;
-    const headerbar_background = config.background;
-    const headerbar_foreground = config.foreground;
+    const headerbar_background = config.@"window-titlebar-background" orelse config.background;
+    const headerbar_foreground = config.@"window-titlebar-foreground" orelse config.foreground;
 
     try writer.print(
         \\widget.unfocused-split {{
@@ -985,11 +987,15 @@ fn loadRuntimeCss(
         switch (window_theme) {
             .ghostty => try writer.print(
                 \\:root {{
-                \\  --headerbar-fg-color: rgb({d},{d},{d});
-                \\  --headerbar-bg-color: rgb({d},{d},{d});
+                \\  --ghostty-fg: rgb({d},{d},{d});
+                \\  --ghostty-bg: rgb({d},{d},{d});
+                \\  --headerbar-fg-color: var(--ghostty-fg);
+                \\  --headerbar-bg-color: var(--ghostty-bg);
                 \\  --headerbar-backdrop-color: oklab(from var(--headerbar-bg-color) calc(l * 0.9) a b / alpha);
-                \\  --popover-fg-color: rgb({d},{d},{d});
-                \\  --popover-bg-color: rgb({d},{d},{d});
+                \\  --overview-fg-color: var(--ghostty-fg);
+                \\  --overview-bg-color: var(--ghostty-bg);
+                \\  --popover-fg-color: var(--ghostty-fg);
+                \\  --popover-bg-color: var(--ghostty-bg);
                 \\}}
                 \\windowhandle {{
                 \\  background-color: var(--headerbar-bg-color);
@@ -999,12 +1005,6 @@ fn loadRuntimeCss(
                 \\ background-color: var(--headerbar-backdrop-color);
                 \\}}
             , .{
-                headerbar_foreground.r,
-                headerbar_foreground.g,
-                headerbar_foreground.b,
-                headerbar_background.r,
-                headerbar_background.g,
-                headerbar_background.b,
                 headerbar_foreground.r,
                 headerbar_foreground.g,
                 headerbar_foreground.b,
