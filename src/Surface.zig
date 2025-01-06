@@ -853,11 +853,8 @@ pub fn handleMessage(self: *Surface, msg: Message) !void {
         },
 
         .color_change => |change| {
-            // On any color change, we have to report for mode 2031
-            // if it is enabled.
-            self.reportColorScheme(false);
-
-            // Notify our apprt
+            // Notify our apprt, but don't send a mode 2031 DSR report
+            // because VT sequences were used to change the color.
             try self.rt_app.performAction(
                 .{ .surface = self },
                 .color_change,
@@ -1159,7 +1156,6 @@ pub fn updateConfig(
     }
 
     // If we are in the middle of a key sequence, clear it.
-    self.keyboard.bindings = null;
     self.endKeySequence(.drop, .free);
 
     // Before sending any other config changes, we give the renderer a new font
@@ -1641,6 +1637,31 @@ pub fn preeditCallback(self: *Surface, preedit_: ?[]const u8) !void {
     try self.queueRender();
 }
 
+/// Returns true if the given key event would trigger a keybinding
+/// if it were to be processed. This is useful for determining if
+/// a key event should be sent to the terminal or not.
+///
+/// Note that this function does not check if the binding itself
+/// is performable, only if the key event would trigger a binding.
+/// If a performable binding is found and the event is not performable,
+/// then Ghosty will act as though the binding does not exist.
+pub fn keyEventIsBinding(
+    self: *Surface,
+    event: input.KeyEvent,
+) bool {
+    switch (event.action) {
+        .release => return false,
+        .press, .repeat => {},
+    }
+
+    // Our keybinding set is either our current nested set (for
+    // sequences) or the root set.
+    const set = self.keyboard.bindings orelse &self.config.keybind.set;
+
+    // If we have a keybinding for this event then we return true.
+    return set.getEvent(event) != null;
+}
+
 /// Called for any key events. This handles keybindings, encoding and
 /// sending to the terminal, etc.
 pub fn keyCallback(
@@ -1856,9 +1877,6 @@ fn maybeHandleBinding(
         if (self.keyboard.bindings != null and
             !event.key.modifier())
         {
-            // Reset to the root set
-            self.keyboard.bindings = null;
-
             // Encode everything up to this point
             self.endKeySequence(.flush, .retain);
         }
@@ -1944,10 +1962,21 @@ fn maybeHandleBinding(
         return .closed;
     }
 
+    // If we have the performable flag and the action was not performed,
+    // then we act as though a binding didn't exist.
+    if (leaf.flags.performable and !performed) {
+        // If we're in a sequence, we treat this as if we pressed a key
+        // that doesn't exist in the sequence. Reset our sequence and flush
+        // any queued events.
+        self.endKeySequence(.flush, .retain);
+
+        return null;
+    }
+
     // If we consume this event, then we are done. If we don't consume
     // it, we processed the action but we still want to process our
     // encodings, too.
-    if (performed and consumed) {
+    if (consumed) {
         // If we had queued events, we deinit them since we consumed
         self.endKeySequence(.drop, .retain);
 
@@ -1988,6 +2017,10 @@ fn endKeySequence(
             .{err},
         );
     };
+
+    // No matter what we clear our current binding set. This restores
+    // the set we look at to the root set.
+    self.keyboard.bindings = null;
 
     if (self.keyboard.queued.items.len > 0) {
         switch (action) {
@@ -3892,7 +3925,11 @@ pub fn performBindingAction(self: *Surface, action: input.Binding.Action) !bool 
                     log.err("error setting clipboard string err={}", .{err});
                     return true;
                 };
+
+                return true;
             }
+
+            return false;
         },
 
         .paste_from_clipboard => try self.startClipboardRequest(
@@ -4245,7 +4282,13 @@ fn writeScreenFile(
     const filename = try std.fmt.bufPrint(&filename_buf, "{s}.txt", .{@tagName(loc)});
 
     // Open our scrollback file
-    var file = try tmp_dir.dir.createFile(filename, .{});
+    var file = try tmp_dir.dir.createFile(
+        filename,
+        switch (builtin.os.tag) {
+            .windows => .{},
+            else => .{ .mode = 0o600 },
+        },
+    );
     defer file.close();
 
     // Screen.dumpString writes byte-by-byte, so buffer it
