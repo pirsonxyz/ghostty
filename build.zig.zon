@@ -72,5 +72,9 @@
             .url = "git+https://invent.kde.org/libraries/plasma-wayland-protocols.git?ref=master#db525e8f9da548cffa2ac77618dd0fbe7f511b86",
             .hash = "12207e0851c12acdeee0991e893e0132fc87bb763969a585dc16ecca33e88334c566",
         },
+        .iterm2_themes_pirson = .{
+            .url = "git+https://github.com/pirsonxyz/iTerm2-Color-Schemes#6a9fccc905831b2a96ea10fb7f16fce7e7236481",
+            .hash = "122060880556bd80db307977e53018a50db86004367885b5db8b7112566ae0b1c8d6",
+        },
     },
 }

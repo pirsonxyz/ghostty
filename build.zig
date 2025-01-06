@@ -486,7 +486,7 @@ pub fn build(b: *std.Build) !void {
 
     // Themes
     {
-        const upstream = b.dependency("iterm2_themes", .{});
+        const upstream = b.dependency("iterm2_themes_pirson", .{});
         const install = b.addInstallDirectory(.{
             .source_dir = upstream.path("ghostty"),
             .install_dir = .{ .custom = "share" },
